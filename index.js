@@ -4,7 +4,6 @@ var utils = require('./pouch-utils');
 var version = require('./version');
 var ldj = require('ldjson-stream');
 var through = require('through2').obj;
-
 var DEFAULT_BATCH_SIZE = 50;
 
 exports.adapters = {};
@@ -19,13 +18,17 @@ exports.plugin.dump = utils.toPromise(function (writableStream, opts, callback) 
     callback = opts;
     opts = {};
   }
-
   var PouchDB = self.constructor;
 
   var output = new PouchDB(self._db_name, {
     stream: writableStream,
     adapter: 'writableStream'
   });
+
+  var batches_limit = 50;
+  if(opts.limit) {
+    batches_limit = opts.limit;
+  }
 
   var chain = self.info().then(function (info) {
     var header = {
@@ -36,7 +39,9 @@ exports.plugin.dump = utils.toPromise(function (writableStream, opts, callback) 
     };
     writableStream.write(JSON.stringify(header) + '\n');
     var replicationOpts = {
-      batch_size: opts.batch_size || DEFAULT_BATCH_SIZE 
+      batch_size: opts.batch_size || DEFAULT_BATCH_SIZE,
+      batches_limit: opts.limit,
+      since: opts.since || 0
     };
     return self.replicate.to(output, replicationOpts);
   }).then(function () {
