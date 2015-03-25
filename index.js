@@ -39,6 +39,11 @@ exports.plugin.dump = utils.toPromise(function (writableStream, opts, callback) 
     adapter: 'writableStream'
   });
 
+  var batches_limit = 50;
+  if(opts.limit) {
+    batches_limit = opts.limit;
+  }
+
   var chain = self.info().then(function (info) {
     var header = {
       version: version,
@@ -48,10 +53,12 @@ exports.plugin.dump = utils.toPromise(function (writableStream, opts, callback) 
     };
     writableStream.write(JSON.stringify(header) + '\n');
     opts = pick(opts, ALLOWED_PARAMS);
-    if (!opts.batch_size) {
-      opts.batch_size = DEFAULT_BATCH_SIZE;
-    }
-    return self.replicate.to(output, opts);
+    var replicationOpts = {
+      batch_size: opts.batch_size || DEFAULT_BATCH_SIZE,
+      batches_limit: opts.limit,
+      since: opts.since || 0
+    };
+    return self.replicate.to(output, replicationOpts);
   }).then(function () {
     return output.close();
   }).then(function () {
